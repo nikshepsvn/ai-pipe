@@ -13,10 +13,11 @@ import ReactFlow, {
   NodeProps,
   Handle,
   Position,
+  MarkerType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { executePipeline } from './actions';
-import { PipelineNode } from './types';
+import { NodeType, PipelineNode } from './types';
 
 // Add these styles
 const flowStyles = {
@@ -54,9 +55,7 @@ const InputNode = ({ data }: NodeProps) => (
 
 const ProcessNode = ({ data }: NodeProps) => (
   <div className="relative">
-    <div 
-      className="bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl shadow-xl border border-gray-700/50 min-w-[300px]"
-    >
+    <div className="bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl shadow-xl border border-gray-700/50 min-w-[300px]">
       <Handle 
         type="target" 
         position={Position.Top} 
@@ -69,12 +68,12 @@ const ProcessNode = ({ data }: NodeProps) => (
       />
       <div className="font-medium mb-3 text-green-400">Process Node</div>
       <textarea
-        placeholder="Enter your system prompt here..."
+        placeholder="Enter your prompt... Use {input} to reference the input text"
         className="w-full p-3 rounded-lg bg-gray-900 border border-gray-700 text-gray-100 
                    placeholder-gray-500 focus:border-green-500 focus:ring-1 focus:ring-green-500 
                    transition-colors min-h-[120px] resize-none"
         value={data.prompt}
-        onChange={(e) => data.onChange(e.target.value)}
+        onChange={(e) => data.onChange(e.target.value, 'prompt')}
       />
       {data.lastOutput && (
         <div className="mt-3 p-3 rounded-lg bg-gray-900/50 border border-gray-700 text-gray-400 text-sm">
@@ -104,9 +103,127 @@ const OutputNode = ({ data }: NodeProps) => (
   </div>
 );
 
+const BranchNode = ({ data }: NodeProps) => (
+  <div className="relative">
+    <div className="bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl shadow-xl border border-gray-700/50 min-w-[300px]">
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        className="!bg-yellow-500 !w-3 !h-3"
+      />
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        className="!bg-yellow-500 !w-3 !h-3"
+        id="true"
+      />
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        className="!bg-yellow-500 !w-3 !h-3"
+        id="false"
+      />
+      <div className="font-medium mb-3 text-yellow-400">Branch Node</div>
+      <textarea
+        placeholder="Enter condition prompt... Should evaluate to true/false"
+        className="w-full p-3 rounded-lg bg-gray-900 border border-gray-700 text-gray-100 
+                   placeholder-gray-500 focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 
+                   transition-colors min-h-[120px] resize-none"
+        value={data.config?.condition?.prompt || ''}
+        onChange={(e) => data.onChange(e.target.value, 'condition')}
+      />
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="text-sm text-gray-400">True Route ID:</div>
+        <input
+          className="p-2 rounded bg-gray-900 border border-gray-700 text-gray-100"
+          value={data.config?.routes?.true || ''}
+          onChange={(e) => data.onChange(e.target.value, 'routeTrue')}
+          placeholder="Node ID for true path"
+        />
+        <div className="text-sm text-gray-400">False Route ID:</div>
+        <input
+          className="p-2 rounded bg-gray-900 border border-gray-700 text-gray-100"
+          value={data.config?.routes?.false || ''}
+          onChange={(e) => data.onChange(e.target.value, 'routeFalse')}
+          placeholder="Node ID for false path"
+        />
+      </div>
+      {data.lastOutput && (
+        <div className="mt-3 p-3 rounded-lg bg-gray-900/50 border border-gray-700 text-gray-400 text-sm">
+          Condition Result: {data.lastOutput}
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+const LoopNode = ({ data }: NodeProps) => (
+  <div className="relative">
+    <div className="bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl shadow-xl border border-gray-700/50 min-w-[300px]">
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        className="!bg-orange-500 !w-3 !h-3"
+      />
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        className="!bg-orange-500 !w-3 !h-3"
+      />
+      <div className="font-medium mb-3 text-orange-400">Loop Node</div>
+      <textarea
+        placeholder="Enter process prompt... Use {input} to reference the input text"
+        className="w-full p-3 mb-3 rounded-lg bg-gray-900 border border-gray-700 text-gray-100 
+                   placeholder-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 
+                   transition-colors min-h-[80px] resize-none"
+        value={data.prompt}
+        onChange={(e) => data.onChange(e.target.value)}
+      />
+      <textarea
+        placeholder="Enter condition prompt... Should evaluate to true to continue loop"
+        className="w-full p-3 rounded-lg bg-gray-900 border border-gray-700 text-gray-100 
+                   placeholder-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 
+                   transition-colors min-h-[80px] resize-none"
+        value={data.config?.condition?.prompt || ''}
+        onChange={(e) => data.onChange(e.target.value, 'condition')}
+      />
+      {data.iterationHistory && data.iterationHistory.length > 0 && (
+        <div className="mt-3 space-y-2">
+          <div className="font-medium text-sm text-orange-400">Iteration History:</div>
+          {data.iterationHistory.map((iteration: { output: string; continueLoop: boolean }, index: number) => (
+            <div 
+              key={index}
+              className="p-3 rounded-lg bg-gray-900/50 border border-gray-700"
+            >
+              <div className="flex justify-between items-center mb-1">
+                <div className="text-sm font-medium text-orange-400">
+                  Iteration {index + 1}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {iteration.continueLoop ? 'Continued' : 'Stopped'} ↓
+                </div>
+              </div>
+              <div className="text-sm text-gray-300 whitespace-pre-wrap">
+                {iteration.output}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {data.lastOutput && !data.iterationHistory && (
+        <div className="mt-3 p-3 rounded-lg bg-gray-900/50 border border-gray-700 text-gray-400 text-sm">
+          Latest Output: {data.lastOutput}
+        </div>
+      )}
+    </div>
+  </div>
+);
+
 const nodeTypes = {
   input: InputNode,
   process: ProcessNode,
+  branch: BranchNode,
+  loop: LoopNode,
   output: OutputNode,
 };
 
@@ -133,7 +250,7 @@ export default function Home() {
     [setEdges]
   );
 
-  const addNode = (type: 'input' | 'process' | 'output') => {
+  const addNode = (type: NodeType) => {
     if ((type === 'input' || type === 'output') && 
         nodes.some(node => node.type === type)) {
       alert(`Only one ${type} node is allowed`);
@@ -143,6 +260,8 @@ export default function Home() {
     const position = {
       input: { x: 250, y: 50 },
       process: { x: 250, y: 200 + (nodes.filter(n => n.type === 'process').length * 200) },
+      branch: { x: 250, y: 200 + (nodes.filter(n => n.type === 'branch').length * 200) },
+      loop: { x: 250, y: 200 + (nodes.filter(n => n.type === 'loop').length * 200) },
       output: { x: 250, y: 350 + (nodes.filter(n => n.type === 'process').length * 200) },
     };
 
@@ -151,18 +270,70 @@ export default function Home() {
       id: nodeId,
       type,
       position: position[type],
+      style: nodeDefaults.style,
       data: {
         prompt: '',
-        onChange: (value: string) => {
+        config: type === 'branch' ? {
+          condition: { type: 'branch', prompt: '' },
+          routes: { true: '', false: '' }
+        } : type === 'loop' ? {
+          condition: { type: 'loop', prompt: '' }
+        } : type === 'process' ? { 
+          mode: 'default' 
+        } : undefined,
+        onChange: (value: string, field?: string) => {
           setNodes((nds) =>
             nds.map((node) =>
               node.id === nodeId
-                ? { ...node, data: { ...node.data, prompt: value } }
+                ? {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      ...(field === 'mode' || field === 'subtype'
+                        ? {
+                            config: {
+                              ...node.data.config,
+                              [field]: value,
+                            },
+                          }
+                        : field === 'condition'
+                        ? {
+                            config: {
+                              ...node.data.config,
+                              condition: {
+                                ...node.data.config?.condition,
+                                prompt: value,
+                              },
+                            },
+                          }
+                        : field === 'routeTrue'
+                        ? {
+                            config: {
+                              ...node.data.config,
+                              routes: {
+                                ...node.data.config?.routes,
+                                true: value,
+                              },
+                            },
+                          }
+                        : field === 'routeFalse'
+                        ? {
+                            config: {
+                              ...node.data.config,
+                              routes: {
+                                ...node.data.config?.routes,
+                                false: value,
+                              },
+                            },
+                          }
+                        : { prompt: value }),
+                    },
+                  }
                 : node
             )
           );
         },
-        result,
+        result: '',
       },
     };
 
@@ -184,6 +355,15 @@ export default function Home() {
       return;
     }
 
+    // Clear previous iteration history from loop nodes
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.type === 'loop'
+          ? { ...node, data: { ...node.data, iterationHistory: [] } }
+          : node
+      )
+    );
+
     // Get connected nodes in order using edges
     const connectedNodes: Node[] = [];
     let currentNode = inputNode;
@@ -202,15 +382,6 @@ export default function Home() {
       return;
     }
 
-    // Get process nodes in order
-    const processNodes = connectedNodes
-      .filter((node) => node.type === 'process')
-      .map((node) => ({
-        id: node.id,
-        type: 'process',
-        prompt: node.data.prompt,
-        position: node.position,
-      }));
     try {
       let currentInput = inputNode.data.prompt;
       
@@ -240,6 +411,59 @@ export default function Home() {
                 : n
             )
           );
+        } else if (node.type === 'loop') {
+          let iterationCount = 0;
+          const MAX_ITERATIONS = 10;
+          const history: Array<{ output: string; continueLoop: boolean }> = [];
+
+          while (iterationCount < MAX_ITERATIONS) {
+            // Process the node
+            const response = await executePipeline(
+              [{
+                id: node.id,
+                type: node.type,
+                prompt: node.data.prompt,
+                position: node.position,
+                config: {
+                  condition: {
+                    type: 'loop',
+                    prompt: node.data.config?.condition?.prompt || ''
+                  }
+                }
+              }] as PipelineNode[],
+              currentInput
+            );
+            currentInput = response;
+
+            // Check if we should continue looping
+            const shouldContinue = await executePipeline(
+              [{
+                id: `${node.id}-condition`,
+                type: 'process',
+                prompt: node.data.config?.condition?.prompt || '',
+                position: node.position
+              }] as PipelineNode[],
+              currentInput
+            );
+
+            // Add to history
+            history.push({
+              output: response,
+              continueLoop: shouldContinue.toLowerCase().trim() === 'true'
+            });
+
+            // Update the node with latest history
+            setNodes((nds) =>
+              nds.map((n) =>
+                n.id === node.id
+                  ? { ...n, data: { ...n.data, iterationHistory: [...history] } }
+                  : n
+              )
+            );
+
+            if (shouldContinue.toLowerCase().trim() !== 'true') break;
+            iterationCount++;
+          }
         }
       }
 
@@ -275,6 +499,20 @@ export default function Home() {
                      transition-colors shadow-lg hover:shadow-green-500/20"
           >
             Add Process
+          </button>
+          <button
+            onClick={() => addNode('branch')}
+            className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 
+                     transition-colors shadow-lg hover:shadow-yellow-500/20"
+          >
+            Add Branch
+          </button>
+          <button
+            onClick={() => addNode('loop')}
+            className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 
+                     transition-colors shadow-lg hover:shadow-orange-500/20"
+          >
+            Add Loop
           </button>
           <button
             onClick={() => addNode('output')}
@@ -322,6 +560,29 @@ export default function Home() {
             defaultEdgeOptions={{
               style: { stroke: '#4B5563' },
               type: 'smoothstep',
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: '#4B5563',
+              },
+            }}
+            connectOnClick={false}
+            onConnectStart={(_, params) => {
+              const sourceNode = nodes.find(n => n.id === params.nodeId);
+              if (sourceNode?.type === 'branch') {
+                // Set edge style based on the handle ID (true/false)
+                const color = params.handleId === 'true' ? '#22C55E' : '#EF4444';
+                setEdges(eds => eds.map(e => ({
+                  ...e,
+                  style: { 
+                    ...e.style, 
+                    stroke: e.source === params.nodeId ? color : '#4B5563'
+                  },
+                  markerEnd: {
+                    type: MarkerType.ArrowClosed,
+                    color: e.source === params.nodeId ? color : '#4B5563'
+                  }
+                })));
+              }
             }}
             proOptions={{ hideAttribution: true }}
             nodesFocusable={false}
