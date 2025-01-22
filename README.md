@@ -84,3 +84,11 @@ Open [http://localhost:3000](http://localhost:3000) to start building pipelines.
 - OpenAI GPT-4o
 - TypeScript
 - Tailwind CSS
+
+## Coming Soon
+
+- [ ] Additional node types for enhanced pipeline flexibility
+- [ ] Improved UI with better node customization and layout tools
+- [ ] Export pipeline configurations as JSON
+- [ ] TypeScript library for executing pipelines programmatically
+- [ ] Support for diverse API integrations (image processing, audio analysis, etc.)
